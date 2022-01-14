@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.10;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract TestCC is ERC20, Ownable {
+    event SetLpAddress(address newLpAddress);
+    uint8 constant rewardsFee = 5;
+    uint8 constant taxFee = 5;
+    uint8 constant liquidityFee = 0;
+    uint8 constant extraFeeOnSell = 2;
+    uint8 constant marketingFee = 5;
+    address private marketingWallet = payable(0xace74c6419600487E33bE7ac69a7ED5E1C015F88);
+    address private liqWallet = payable(0x6d1b1EF62fA56546a372a1a4dc4BDc106bEc42D3);
+    address private taxFeeWallet = payable(0x6E3F59cfDd2E6d51738E0f1f5A5702Ae5e56eDAD);
+    address private lpAddress;   // bsc-testnet
+
+    constructor() ERC20("TestCC", "TCC") {
+        _mint(msg.sender, 100000 * 1e9);
+    }
+
+    function setLpAddress (address newLpAddress) external onlyOwner {
+        lpAddress = newLpAddress;
+        emit SetLpAddress(newLpAddress);
+    } 
+
+    function decimals() public view override(ERC20) returns (uint8) {
+        return 9;
+    }
+
+    function _transfer(address sender, address recipient, uint256 amount) internal override(ERC20) {
+        uint feeAmount;
+        if(recipient == lpAddress) {
+            super._transfer(sender, marketingWallet, amount * marketingFee / 100);
+            feeAmount += amount * marketingFee / 100;
+            super._transfer(sender, liqWallet, amount * rewardsFee / 100);
+            feeAmount += amount * rewardsFee / 100;
+            super._transfer(sender, taxFeeWallet, amount * taxFee / 100);
+            feeAmount += amount * taxFee / 100;
+        }
+        super._transfer(sender, recipient, amount - feeAmount);
+    }
+
+    function mint(address account, uint256 amount) external onlyOwner {
+        super._mint(account, amount);
+    }
+}
